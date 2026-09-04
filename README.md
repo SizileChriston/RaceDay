@@ -105,3 +105,173 @@ Part 1 establishes the database and API blueprint.
 Part 2 will implement the RESTful API.
 
 Part 3 will implement the MVC application that consumes the API.
+## User Roles
+
+### Organiser
+
+Organisers are responsible for managing RaceDay events.
+
+An Organiser can:
+
+* Create events
+* Edit their own events
+* Delete their own events
+* Create event categories
+* Update event categories
+* Delete event categories
+* Create race routes
+* Update race routes
+* Delete race routes
+* View participant enrolments for their events
+* Capture participant results
+* Update race results
+* View results for their events
+
+Organiser permissions will be enforced at the API level during Part 2.
+
+### Participant
+
+Participants use RaceDay to discover and enter events.
+
+A Participant can:
+
+* Create an account
+* Log in
+* View their own profile
+* Update their own profile
+* Browse available events
+* View event categories
+* View event routes
+* Enrol in a category
+* View their own enrolments
+* Cancel their own enrolments
+* View their own race results
+
+Participants cannot create or manage events or record official race results.
+
+### Access Control
+
+RaceDay separates authentication from authorisation.
+
+**Authentication** determines who the user is.
+
+**Authorisation** determines what the user is allowed to do.
+
+For example:
+
+```text
+Participant
+    │
+    └── POST /api/enrolments
+             │
+             └── Allowed
+
+Participant
+    │
+    └── POST /api/events
+             │
+             └── 403 Forbidden
+
+Organiser
+    │
+    └── POST /api/events
+             │
+             └── Allowed
+```
+## SQL Database Setup
+
+The RaceDay database is defined by:
+
+```text
+docs/RaceDay_Database.sql
+```
+
+The script is written for Microsoft SQL Server and has been tested against:
+
+```text
+(localdb)\MSSQLLocalDB
+```
+
+### Running the database script
+
+From the project root, the script can be executed with SQL Server tools using:
+
+```powershell
+sqlcmd -S "(localdb)\MSSQLLocalDB" -i "docs/RaceDay_Database.sql"
+```
+
+The script creates the `RaceDay` database and the following tables:
+
+```text
+Users
+Events
+Categories
+Routes
+Enrolments
+Results
+```
+
+### Seed Data Verification
+
+The script includes verification queries confirming the expected records.
+
+The current test data contains:
+
+| Table      | Records |
+| ---------- | ------: |
+| Users      |       4 |
+| Events     |       3 |
+| Categories |       7 |
+| Routes     |       3 |
+| Enrolments |       4 |
+| Results    |       2 |
+
+The database script is designed to recreate the database during development so that it can be tested repeatedly from a clean state.
+
+## GitHub Actions CI/CD
+
+RaceDay uses GitHub Actions to validate the Part 1 repository structure.
+
+The workflow is stored in:
+
+```text
+.github/workflows/
+```
+
+The workflow checks that the required Part 1 files are present, including:
+
+```text
+docs/RaceDay_ERD.png
+docs/API_Endpoint_Plan.md
+docs/RaceDay_Database.sql
+README.md
+```
+
+The workflow runs automatically when changes are pushed to the `main` branch.
+
+A successful workflow is represented by a green check mark in GitHub Actions.
+
+### CI/CD Validation Flow
+
+```text
+Developer
+    │
+    │ git push
+    ▼
+GitHub Repository
+    │
+    ▼
+GitHub Actions
+    │
+    ├── Check repository structure
+    ├── Check required documentation
+    └── Validate Part 1 files
+    │
+    ▼
+Successful Build
+    │
+    ▼
+Green Check Mark
+```
+
+A screenshot of the successful workflow run will be included below as submission evidence.
