@@ -295,7 +295,8 @@ The video will contain my own voice explaining the project and demonstrating the
 ### YouTube Video
 
 **Part 1 Presentation:**
-`[INSERT UNLISTED YOUTUBE LINK HERE]`
+https://youtu.be/ZCASjUr5_BQ
+
 ## SQL Database Setup
 
 The RaceDay database is created using the SQL script:
