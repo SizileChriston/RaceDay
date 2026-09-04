@@ -1,0 +1,51 @@
+name: Validate Documentation and Database Script
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate-files:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Verify Documentation Files
+        run: |
+          echo "Checking directory structure..."
+          ls -la
+          
+          if [ ! -d "docs" ]; then
+            echo "Error: /docs directory does not exist!"
+            exit 1
+          fi
+
+          echo "Checking files inside /docs..."
+          ls -la docs/
+
+          missing=0
+          
+          if [ ! -f "docs/API_Endpoint_Plan.md" ]; then
+            echo "Missing: docs/API_Endpoint_Plan.md"
+            missing=1
+          fi
+
+          if [ ! -f "docs/RaceDay_Database.sql" ]; then
+            echo "Missing: docs/RaceDay_Database.sql"
+            missing=1
+          fi
+
+          if [ ! -f "docs/RaceDay_ERD.png" ] && [ ! -f "RaceDayERD.drawio.png" ]; then
+            echo "Missing ERD image!"
+            missing=1
+          fi
+
+          if [ $missing -eq 1 ]; then
+            exit 1
+          fi
+
+          echo "All required files are verified successfully!"
