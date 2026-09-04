@@ -314,3 +314,51 @@ From the RaceDay project root, the script can be executed using `sqlcmd`:
 
 **workflow**
 <img width="1433" height="717" alt="image" src="https://github.com/user-attachments/assets/67f9a9ad-acdc-4740-b577-63eba18abab3" />
+## Part 1 Final Verification
+
+The Part 1 deliverables have been reviewed for consistency across the RaceDay ERD, API specification and SQL database script.
+
+### Cross-Document Consistency
+
+The following six entities are represented consistently across the project:
+
+* `Users`
+* `Events`
+* `Categories`
+* `Routes`
+* `Enrolments`
+* `Results`
+
+The API endpoint plan corresponds to these entities and defines the intended relationships, user roles, request structures and expected HTTP responses.
+
+The SQL database script implements the same six entities with primary keys, foreign keys, required constraints and realistic sample data.
+
+### Database Verification
+
+The SQL script was executed successfully against the local SQL Server LocalDB instance.
+
+Verified records:
+
+| Table      | Records |
+| ---------- | ------: |
+| Users      |       4 |
+| Events     |       3 |
+| Categories |       7 |
+| Routes     |       3 |
+| Enrolments |       4 |
+| Results    |       2 |
+
+### Part 1 Repository Requirements
+
+| Requirement                    | Status                                            |
+| ------------------------------ | ------------------------------------------------- |
+| ERD in `/docs`                 | ✅                                                 |
+| API Endpoint Plan in `/docs`   | ✅                                                 |
+| SQL Database Script in `/docs` | ✅                                                 |
+| GitHub Actions workflow        | ✅                                                 |
+| Green CI/CD validation         | ✅                                                 |
+| README documentation           | ✅                                                 |
+| Minimum 20 commits             | ✅                                                 |
+| Part 1 presentation            | 🔄 Video link to be added before final submission |
+
+Part 1 is therefore ready for final presentation and submission, subject to adding the final unlisted YouTube video link.
