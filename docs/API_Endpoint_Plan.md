@@ -214,71 +214,413 @@ Existing enrolments are considered before deleting a category.
 
 The database also enforces important category rules through CHECK and UNIQUE constraints.
 
-9. Route Endpoints
+# 9. Enrolment Endpoints
 
-Routes represent the physical routes associated with RaceDay events.
+Enrolments represent a participant's registration for a specific event category.
 
-#	Method	Route	Description	Role Required	Request Body	Expected Response
-14	GET	/api/events/{eventId}/routes	Retrieves routes associated with an event.	Public	None	200 OK, 404 Not Found
-15	POST	/api/events/{eventId}/routes	Creates a route for an event owned by the organiser.	Organiser	routeName, distanceKm, description	201 Created, 400 Bad Request, 401 Unauthorized, 403 Forbidden, 404 Not Found
-16	PUT	/api/routes/{routeId}	Updates a route belonging to the organiser's event.	Organiser	routeName, distanceKm, description	200 OK, 400 Bad Request, 401 Unauthorized, 403 Forbidden, 404 Not Found
-17	DELETE	/api/routes/{routeId}	Deletes a route belonging to the organiser's event.	Organiser	None	204 No Content, 401 Unauthorized, 403 Forbidden, 404 Not Found
+A participant does not enrol directly in an event. Instead, the participant selects a category belonging to an event and creates an enrolment for that category.
 
-The API will determine route ownership through:
+The authenticated user's identity will be obtained from the JWT. The client will not submit an arbitrary `UserID`.
 
-Route
-  |
-  v
-Route.EventID
-  |
-  v
-Event.OrganiserID
-  |
-  v
-Authenticated UserID
+|  # | Method | Route                           | Description                                                                       | Role Required | Request Body | Expected Response                                                                                      |
+| -: | ------ | ------------------------------- | --------------------------------------------------------------------------------- | ------------- | ------------ | ------------------------------------------------------------------------------------------------------ |
+| 18 | POST   | `/api/enrolments`               | Enrols the authenticated participant in an event category.                        | Participant   | `categoryId` | `201 Created`, `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`, `409 Conflict` |
+| 19 | GET    | `/api/enrolments/my`            | Retrieves all enrolments belonging to the authenticated participant.              | Participant   | None         | `200 OK`, `401 Unauthorized`                                                                           |
+| 20 | GET    | `/api/enrolments`               | Retrieves enrolments associated with events owned by the authenticated organiser. | Organiser     | None         | `200 OK`, `401 Unauthorized`, `403 Forbidden`                                                          |
+| 21 | DELETE | `/api/enrolments/{enrolmentId}` | Cancels an enrolment belonging to the authenticated participant.                  | Participant   | None         | `204 No Content`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`                                 |
 
-This prevents an organiser from modifying another organiser's route.
+## 9.1 Create Enrolment Process
 
-10. Enrolment Endpoints
-#	Method	Route	Description	Role Required	Request Body	Expected Response
-18	POST	/api/enrolments	Enrols the authenticated participant in an event category.	Participant	categoryId	201 Created, 400 Bad Request, 401 Unauthorized, 403 Forbidden, 404 Not Found, 409 Conflict
-19	GET	/api/enrolments/my	Retrieves all enrolments belonging to the authenticated participant.	Participant	None	200 OK, 401 Unauthorized
-20	GET	/api/enrolments	Retrieves enrolments associated with events owned by the authenticated organiser.	Organiser	None	200 OK, 401 Unauthorized, 403 Forbidden
-21	DELETE	/api/enrolments/{enrolmentId}	Cancels an enrolment belonging to the authenticated participant.	Participant	None	204 No Content, 401 Unauthorized, 403 Forbidden, 404 Not Found
-10.1 Enrolment Business Rules
+The enrolment process is:
+
+```text
+Participant logs in
+       |
+       v
+JWT identifies UserID
+       |
+       v
+Participant selects Category
+       |
+       v
+POST /api/enrolments
+       |
+       v
+API verifies Category exists
+       |
+       v
+API identifies associated Event
+       |
+       v
+API checks participant capacity
+       |
+       v
+API checks duplicate enrolment
+       |
+       v
+Enrolment created
+```
+
+The client only needs to submit the category being selected.
+
+Example:
+
+```json
+{
+    "categoryId": 2
+}
+```
+
+The API determines the participant from the authenticated token.
+
+## 9.2 Enrolment Business Rules
 
 The API should prevent:
 
-Unauthenticated users from creating enrolments.
-Organisers from enrolling as participants through this endpoint.
-Participants from enrolling in the same category more than once.
-Enrolment into a non-existent category.
-Enrolment when the category's maximum participant capacity has been reached.
-A participant from cancelling another participant's enrolment.
+* Unauthenticated users from creating enrolments.
+* Organisers from enrolling as participants through this endpoint.
+* Participants from enrolling in the same category more than once.
+* Enrolment into a category that does not exist.
+* Enrolment when the category's participant capacity has been reached.
+* Participants from cancelling another participant's enrolment.
 
-The API should also verify that the authenticated participant matches the UserID associated with the enrolment before allowing a cancellation.
+The API should also verify that the selected category belongs to a valid event.
 
-The database supports duplicate prevention through the unique constraint on:
+## 9.3 Database Relationship
 
+The enrolment is represented in the database using:
+
+```text
+Users.UserID
+      |
+      v
+Enrolments.UserID
+
+Categories.CategoryID
+      |
+      v
+Enrolments.CategoryID
+```
+
+This means one participant can have multiple enrolments and one category can contain multiple participant enrolments.
+
+The database contains a unique constraint on:
+
+```text
 (UserID, CategoryID)
-11. Result Endpoints
-#	Method	Route	Description	Role Required	Request Body	Expected Response
-22	POST	/api/enrolments/{enrolmentId}/result	Records a race result for an enrolled participant.	Organiser	finishTime, position, resultStatus	201 Created, 400 Bad Request, 401 Unauthorized, 403 Forbidden, 404 Not Found, 409 Conflict
-23	PUT	/api/results/{resultId}	Updates an existing race result.	Organiser	finishTime, position, resultStatus	200 OK, 400 Bad Request, 401 Unauthorized, 403 Forbidden, 404 Not Found
-24	GET	/api/results/my	Retrieves results belonging to the authenticated participant.	Participant	None	200 OK, 401 Unauthorized
-25	GET	/api/results	Retrieves results associated with events owned by the authenticated organiser.	Organiser	None	200 OK, 401 Unauthorized, 403 Forbidden
-26	GET	/api/events/{eventId}/results	Retrieves public results and leaderboard information for an event.	Public	None	200 OK, 404 Not Found
-11.1 Result Status Values
+```
 
-The API will use the following result statuses:
+This prevents the same participant from being enrolled in the same category more than once.
 
+## 9.4 Enrolment Capacity
+
+The API should compare the number of active/confirmed enrolments for a category against:
+
+```text
+Categories.MaxParticipants
+```
+
+If the category has reached capacity, the API should return:
+
+`409 Conflict` — The category has reached its maximum participant capacity.
+
+## 9.5 Participant Enrolment Ownership
+
+The participant's authenticated identity must be checked before a cancellation is permitted.
+
+Conceptually:
+
+```text
+Authenticated User
+       |
+       v
+     UserID
+       |
+       v
+Enrolments.UserID
+       |
+       v
+Ownership confirmed
+       |
+       v
+Cancellation permitted
+```
+
+A participant must never be able to cancel another participant's enrolment by changing the `enrolmentId` in the request URL.
+
+## 9.6 Organiser Enrolment Access
+
+The organiser endpoint:
+
+```text
+GET /api/enrolments
+```
+
+will return enrolments associated with events owned by the authenticated organiser.
+
+The organiser should therefore only see enrolments connected to their own events rather than unrestricted enrolments from every organiser in the system.
+
+The ownership path is:
+
+```text
+Enrolment
+    |
+    v
+CategoryID
+    |
+    v
+Category.EventID
+    |
+    v
+Event.EventID
+    |
+    v
+Event.OrganiserID
+    |
+    v
+Authenticated UserID
+```
+
+---
+
+# 10. Result Endpoints
+
+Results represent the official performance information associated with a participant's enrolment.
+
+A result belongs to an enrolment rather than directly to a user or event.
+
+|  # | Method | Route                                  | Description                                                                    | Role Required | Request Body                             | Expected Response                                                                                      |
+| -: | ------ | -------------------------------------- | ------------------------------------------------------------------------------ | ------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| 22 | POST   | `/api/enrolments/{enrolmentId}/result` | Records a race result for an enrolled participant.                             | Organiser     | `finishTime`, `position`, `resultStatus` | `201 Created`, `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`, `409 Conflict` |
+| 23 | PUT    | `/api/results/{resultId}`              | Updates an existing race result.                                               | Organiser     | `finishTime`, `position`, `resultStatus` | `200 OK`, `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`                      |
+| 24 | GET    | `/api/results/my`                      | Retrieves results belonging to the authenticated participant.                  | Participant   | None                                     | `200 OK`, `401 Unauthorized`                                                                           |
+| 25 | GET    | `/api/results`                         | Retrieves results associated with events owned by the authenticated organiser. | Organiser     | None                                     | `200 OK`, `401 Unauthorized`, `403 Forbidden`                                                          |
+| 26 | GET    | `/api/events/{eventId}/results`        | Retrieves public results and leaderboard information for an event.             | Public        | None                                     | `200 OK`, `404 Not Found`                                                                              |
+
+## 10.1 Record Result Process
+
+The intended result workflow is:
+
+```text
+Participant
+     |
+     v
+Enrolment
+     |
+     v
+Race takes place
+     |
+     v
+Organiser records result
+     |
+     v
+Results record created
+     |
+     v
+Participant views own result
+     |
+     v
+Public event leaderboard available
+```
+
+## 10.2 Result Validation
+
+When an organiser records a result, the API should validate:
+
+* The enrolment exists.
+* The enrolment belongs to a valid category.
+* The category belongs to a valid event.
+* The authenticated organiser owns the event.
+* A result does not already exist for the enrolment.
+* `position`, when supplied, is greater than zero.
+* `finishTime`, when supplied, is in a valid time format.
+* `resultStatus` is one of the permitted values.
+
+The permitted result statuses are:
+
+```text
 Official
 Pending
 Disqualified
+```
 
-These values correspond directly with the database validation rules defined in the RaceDay SQL database.
+## 10.3 Result Ownership
 
-Each enrolment can have a maximum of one result because the database defines a unique relationship between Results.EnrolmentID and the associated enrolment.
+An organiser's authority to record or update a result is determined through the enrolment's relationship with the event.
+
+The ownership chain is:
+
+```text
+Result
+   |
+   v
+EnrolmentID
+   |
+   v
+Enrolment
+   |
+   v
+CategoryID
+   |
+   v
+Category
+   |
+   v
+EventID
+   |
+   v
+Event.OrganiserID
+   |
+   v
+Authenticated Organiser
+```
+
+This prevents an organiser from recording or editing results for another organiser's event.
+
+## 10.4 One Result Per Enrolment
+
+The database defines `Results.EnrolmentID` as unique.
+
+Therefore:
+
+```text
+One Enrolment
+      |
+      └──── 0 or 1 Result
+```
+
+An organiser attempting to create a second result for the same enrolment should receive:
+
+`409 Conflict` — A result already exists for this enrolment.
+
+## 10.5 Participant Result Access
+
+The participant endpoint:
+
+```text
+GET /api/results/my
+```
+
+must return only results belonging to the authenticated participant.
+
+The API determines this relationship through:
+
+```text
+Authenticated UserID
+       |
+       v
+Enrolments.UserID
+       |
+       v
+Enrolments.EnrolmentID
+       |
+       v
+Results.EnrolmentID
+```
+
+The participant cannot supply another user's ID to retrieve their results.
+
+## 10.6 Organiser Result Access
+
+The organiser endpoint:
+
+```text
+GET /api/results
+```
+
+will return results associated with events owned by the authenticated organiser.
+
+This means an organiser can manage their own event results without receiving unrestricted access to results belonging to other organisers.
+
+## 10.7 Public Results
+
+The endpoint:
+
+```text
+GET /api/events/{eventId}/results
+```
+
+allows public users to view event results and leaderboard information.
+
+This supports the RaceDay requirement for participants and visitors to track event performance without exposing private user account information.
+
+Public result responses should expose only the information required for event performance reporting.
+
+## 10.8 Result Update
+
+The organiser may update an existing result using:
+
+```text
+PUT /api/results/{resultId}
+```
+
+This can be used to correct:
+
+* Finish time
+* Position
+* Result status
+
+An update is permitted only when the authenticated organiser owns the event connected to the result.
+
+---
+
+# 11. Participant-to-Result Workflow
+
+The combined enrolment and result workflow is:
+
+```text
+┌───────────────────┐
+│     Participant   │
+└─────────┬─────────┘
+          │
+          │ Browse Events
+          ▼
+┌───────────────────┐
+│       Event       │
+└─────────┬─────────┘
+          │
+          │ Select Category
+          ▼
+┌───────────────────┐
+│     Category      │
+└─────────┬─────────┘
+          │
+          │ POST /api/enrolments
+          ▼
+┌───────────────────┐
+│     Enrolment     │
+└─────────┬─────────┘
+          │
+          │ Race takes place
+          ▼
+┌───────────────────┐
+│      Result       │
+└─────────┬─────────┘
+          │
+          ├──────────────► Participant views /api/results/my
+          │
+          └──────────────► Public views /api/events/{eventId}/results
+```
+
+Organiser control operates across the same relationship:
+
+```text
+Organiser
+    |
+    v
+Event
+    |
+    v
+Category
+    |
+    v
+Enrolment
+    |
+    v
+Result
+```
+
+The API will verify organiser ownership before allowing organiser operations at each stage.
 
 12. Sample Request Payloads
 12.1 Register Participant
@@ -538,21 +880,472 @@ Role-based access control
 Ownership validation
 Business-rule validation
 HTTP error handling
-19. Consistency with the RaceDay Database
+# 19. Database Entity and API Mapping
 
-The API design has been aligned with the database schema defined in RaceDay_Database.sql.
+The RaceDay API has been designed directly from the six entities defined in the RaceDay Entity Relationship Diagram (ERD).
 
-API Concept	Database Implementation
-User account	Users
-Event ownership	Events.OrganiserID → Users.UserID
-Event categories	Categories.EventID → Events.EventID
-Event routes	Routes.EventID → Events.EventID
-Participant enrolment	Enrolments.UserID → Users.UserID
-Category enrolment	Enrolments.CategoryID → Categories.CategoryID
-Race result	Results.EnrolmentID → Enrolments.EnrolmentID
-Result status	Official, Pending, Disqualified
+The purpose of this mapping is to ensure that the database structure, API resources, user roles and application functionality remain consistent throughout development.
 
-The API endpoint design is therefore based on the same six entities represented in the RaceDay ERD and database.
+Each database entity has a clearly defined responsibility within the API.
+
+## 19.1 Entity-to-API Mapping
+
+| ERD Entity | Primary Responsibility                                              | Main API Resource      | Main API Endpoints                                                 |
+| ---------- | ------------------------------------------------------------------- | ---------------------- | ------------------------------------------------------------------ |
+| Users      | Stores user identity, authentication information and roles.         | Users / Authentication | `/api/auth/register`, `/api/auth/login`, `/api/users/me`           |
+| Events     | Stores race event information and organiser ownership.              | Events                 | `/api/events`, `/api/events/{eventId}`                             |
+| Categories | Stores race categories and entry information belonging to an event. | Categories             | `/api/events/{eventId}/categories`, `/api/categories/{categoryId}` |
+| Routes     | Stores physical race route information belonging to an event.       | Routes                 | `/api/events/{eventId}/routes`, `/api/routes/{routeId}`            |
+| Enrolments | Stores participant registrations for event categories.              | Enrolments             | `/api/enrolments`, `/api/enrolments/{enrolmentId}`                 |
+| Results    | Stores participant race performance associated with an enrolment.   | Results                | `/api/results`, `/api/results/my`, `/api/events/{eventId}/results` |
+
+---
+
+## 19.2 Users Entity
+
+The `Users` entity stores the identity and authentication-related information for both RaceDay roles:
+
+* Organiser
+* Participant
+
+The database fields include:
+
+```text
+UserID
+FirstName
+LastName
+Email
+PasswordHash
+Role
+CreatedAt
+```
+
+The API uses the `Users` entity for:
+
+```text
+POST /api/auth/register
+POST /api/auth/login
+GET  /api/users/me
+PUT  /api/users/me
+```
+
+The authenticated user's `UserID` will be used by the API when applying ownership and access-control rules.
+
+The client should not be trusted to provide an arbitrary user identity when performing protected operations.
+
+---
+
+## 19.3 Events Entity
+
+The `Events` entity stores the main race event information.
+
+The database fields include:
+
+```text
+EventID
+OrganiserID
+EventName
+Description
+EventDate
+Location
+EventType
+CreatedAt
+```
+
+The API exposes Events through:
+
+```text
+GET    /api/events
+GET    /api/events/{eventId}
+POST   /api/events
+PUT    /api/events/{eventId}
+DELETE /api/events/{eventId}
+```
+
+The `OrganiserID` foreign key connects each event to its owning organiser.
+
+The API therefore uses the relationship:
+
+```text
+Users.UserID
+      |
+      v
+Events.OrganiserID
+```
+
+to enforce event ownership.
+
+---
+
+## 19.4 Categories Entity
+
+The `Categories` entity stores the race options available within an event.
+
+The database fields include:
+
+```text
+CategoryID
+EventID
+CategoryName
+DistanceKm
+MaxParticipants
+EntryFee
+```
+
+Categories are exposed using:
+
+```text
+GET    /api/events/{eventId}/categories
+POST   /api/events/{eventId}/categories
+PUT    /api/categories/{categoryId}
+DELETE /api/categories/{categoryId}
+```
+
+The category's `EventID` establishes its parent event.
+
+The ownership path is:
+
+```text
+Category
+    |
+    v
+Category.EventID
+    |
+    v
+Event
+    |
+    v
+Event.OrganiserID
+    |
+    v
+Organiser
+```
+
+This allows the API to verify that an organiser owns the event before modifying one of its categories.
+
+---
+
+## 19.5 Routes Entity
+
+The `Routes` entity stores information about the physical route associated with an event.
+
+The database fields include:
+
+```text
+RouteID
+EventID
+RouteName
+DistanceKm
+Description
+```
+
+Routes are exposed through:
+
+```text
+GET    /api/events/{eventId}/routes
+POST   /api/events/{eventId}/routes
+PUT    /api/routes/{routeId}
+DELETE /api/routes/{routeId}
+```
+
+The route belongs to an event through:
+
+```text
+Routes.EventID
+        |
+        v
+Events.EventID
+```
+
+The event then determines the organiser who owns the route.
+
+---
+
+## 19.6 Enrolments Entity
+
+The `Enrolments` entity records which participant has entered which race category.
+
+The database fields include:
+
+```text
+EnrolmentID
+UserID
+CategoryID
+EnrolmentDate
+Status
+```
+
+The API exposes enrolment functionality through:
+
+```text
+POST   /api/enrolments
+GET    /api/enrolments/my
+GET    /api/enrolments
+DELETE /api/enrolments/{enrolmentId}
+```
+
+The participant identity is determined from the JWT.
+
+The database relationship is:
+
+```text
+Users.UserID
+      |
+      v
+Enrolments.UserID
+```
+
+while the selected race category is connected through:
+
+```text
+Categories.CategoryID
+      |
+      v
+Enrolments.CategoryID
+```
+
+The API can therefore determine the complete participant journey:
+
+```text
+Participant
+    |
+    v
+Enrolment
+    |
+    v
+Category
+    |
+    v
+Event
+```
+
+The unique database constraint on `(UserID, CategoryID)` supports the API rule preventing a participant from enrolling in the same category more than once.
+
+---
+
+## 19.7 Results Entity
+
+The `Results` entity stores the result associated with a participant's enrolment.
+
+The database fields include:
+
+```text
+ResultID
+EnrolmentID
+FinishTime
+Position
+ResultStatus
+RecordedAt
+```
+
+The API exposes result functionality through:
+
+```text
+POST /api/enrolments/{enrolmentId}/result
+PUT  /api/results/{resultId}
+GET  /api/results/my
+GET  /api/results
+GET  /api/events/{eventId}/results
+```
+
+The result does not directly reference a participant or organiser.
+
+Instead, its ownership and context are determined through the relational chain:
+
+```text
+Result
+   |
+   v
+EnrolmentID
+   |
+   v
+Enrolment
+   |
+   v
+CategoryID
+   |
+   v
+Category
+   |
+   v
+EventID
+   |
+   v
+Event
+   |
+   v
+OrganiserID
+```
+
+This allows the API to verify that an organiser is authorised to create or update a result for an event that they own.
+
+---
+
+# 20. API-to-ERD Relationship Map
+
+The overall relationship between the ERD and API can be represented as:
+
+```text
+┌──────────────┐
+│    Users     │
+└──────┬───────┘
+       │
+       │ OrganiserID
+       ▼
+┌──────────────┐
+│    Events    │
+└───┬────┬─────┘
+    │    │
+    │    └──────────────┐
+    │                   │
+    ▼                   ▼
+┌──────────────┐   ┌──────────────┐
+│  Categories  │   │    Routes    │
+└──────┬───────┘   └──────────────┘
+       │
+       │ CategoryID
+       ▼
+┌──────────────┐
+│  Enrolments  │
+└──────┬───────┘
+       │
+       │ EnrolmentID
+       ▼
+┌──────────────┐
+│   Results    │
+└──────────────┘
+```
+
+The equivalent API structure is:
+
+```text
+/api/users/me
+        │
+        │
+        ▼
+/api/events
+        │
+        ├────────── /api/events/{eventId}/categories
+        │
+        └────────── /api/events/{eventId}/routes
+                       │
+                       │
+                       ▼
+                /api/enrolments
+                       │
+                       ▼
+             /api/enrolments/{id}/result
+                       │
+                       ▼
+                /api/results
+```
+
+The API therefore represents the same logical structure as the underlying relational database.
+
+---
+
+# 21. Functional Requirement to Endpoint Mapping
+
+The endpoint plan is also directly mapped to the functional requirements of the RaceDay system.
+
+| Functional Requirement           | Supporting Endpoint(s)                      |
+| -------------------------------- | ------------------------------------------- |
+| Register an account              | `POST /api/auth/register`                   |
+| Log in                           | `POST /api/auth/login`                      |
+| View own profile                 | `GET /api/users/me`                         |
+| Update own profile               | `PUT /api/users/me`                         |
+| Browse events                    | `GET /api/events`                           |
+| View an event                    | `GET /api/events/{eventId}`                 |
+| Create an event                  | `POST /api/events`                          |
+| Edit an event                    | `PUT /api/events/{eventId}`                 |
+| Delete an event                  | `DELETE /api/events/{eventId}`              |
+| View categories                  | `GET /api/events/{eventId}/categories`      |
+| Create category                  | `POST /api/events/{eventId}/categories`     |
+| Update category                  | `PUT /api/categories/{categoryId}`          |
+| Delete category                  | `DELETE /api/categories/{categoryId}`       |
+| View routes                      | `GET /api/events/{eventId}/routes`          |
+| Create route                     | `POST /api/events/{eventId}/routes`         |
+| Update route                     | `PUT /api/routes/{routeId}`                 |
+| Delete route                     | `DELETE /api/routes/{routeId}`              |
+| Enter an event category          | `POST /api/enrolments`                      |
+| View own enrolments              | `GET /api/enrolments/my`                    |
+| Organiser views event enrolments | `GET /api/enrolments`                       |
+| Cancel own enrolment             | `DELETE /api/enrolments/{enrolmentId}`      |
+| Record participant result        | `POST /api/enrolments/{enrolmentId}/result` |
+| Update result                    | `PUT /api/results/{resultId}`               |
+| Participant views own results    | `GET /api/results/my`                       |
+| Organiser views event results    | `GET /api/results`                          |
+| Public views event results       | `GET /api/events/{eventId}/results`         |
+
+This mapping demonstrates that the planned API covers the required RaceDay functionality before implementation begins.
+
+---
+
+# 22. Traceability from ERD to API to Database
+
+The RaceDay design follows a traceability principle:
+
+```text
+ERD
+ ↓
+Database Table
+ ↓
+API Resource
+ ↓
+API Endpoint
+ ↓
+MVC Feature
+```
+
+For example:
+
+```text
+ERD:
+Events
+    ↓
+Database:
+Events table
+    ↓
+API:
+Event endpoints
+    ↓
+MVC:
+Event browsing and organiser event management
+```
+
+Another example:
+
+```text
+ERD:
+Enrolments
+    ↓
+Database:
+Enrolments table
+    ↓
+API:
+POST /api/enrolments
+    ↓
+MVC:
+Participant enters a race category
+```
+
+And:
+
+```text
+ERD:
+Results
+    ↓
+Database:
+Results table
+    ↓
+API:
+POST /api/enrolments/{id}/result
+    ↓
+MVC:
+Organiser captures race results
+```
+
+This traceability will help ensure that the implementation in Parts 2 and 3 remains consistent with the planning completed in Part 1.
 
 20. Part 2 Implementation Note
 
