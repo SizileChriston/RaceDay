@@ -156,63 +156,187 @@ and gaining organiser privileges.
 
 401 Unauthorized — Email address or password is incorrect.
 
-6. User Profile Endpoints
-#	Method	Route	Description	Role Required	Request Body	Expected Response
-3	GET	/api/users/me	Retrieves the profile of the currently authenticated user.	Participant / Organiser	None	200 OK, 401 Unauthorized
-4	PUT	/api/users/me	Updates the profile of the currently authenticated user.	Participant / Organiser	firstName, lastName, email	200 OK, 400 Bad Request, 401 Unauthorized, 409 Conflict
+# 6. Event Endpoints
 
-The authenticated user's identity will be obtained from the JWT rather than accepting a UserID from the client.
+Events are the main resources in the RaceDay platform. Public users can browse available events, while authenticated Organisers are responsible for creating and managing their own events.
 
-The /me approach prevents a user from attempting to access another user's profile by changing an ID in the URL.
+|  # | Method | Route                   | Description                                                                             | Role Required | Request Body                                                     | Expected Response                                                                      |
+| -: | ------ | ----------------------- | --------------------------------------------------------------------------------------- | ------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+|  5 | GET    | `/api/events`           | Retrieves available RaceDay events for public browsing.                                 | Public        | None                                                             | `200 OK`                                                                               |
+|  6 | GET    | `/api/events/{eventId}` | Retrieves detailed information for a specific event.                                    | Public        | None                                                             | `200 OK`, `404 Not Found`                                                              |
+|  7 | POST   | `/api/events`           | Creates a new race event. The authenticated organiser becomes the owner.                | Organiser     | `eventName`, `description`, `eventDate`, `location`, `eventType` | `201 Created`, `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`                  |
+|  8 | PUT    | `/api/events/{eventId}` | Updates an event owned by the authenticated organiser.                                  | Organiser     | `eventName`, `description`, `eventDate`, `location`, `eventType` | `200 OK`, `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`      |
+|  9 | DELETE | `/api/events/{eventId}` | Deletes an event owned by the authenticated organiser, subject to dependent-data rules. | Organiser     | None                                                             | `204 No Content`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`, `409 Conflict` |
 
-7. Event Endpoints
-#	Method	Route	Description	Role Required	Request Body	Expected Response
-5	GET	/api/events	Retrieves available RaceDay events.	Public	None	200 OK
-6	GET	/api/events/{eventId}	Retrieves detailed information for a specific event.	Public	None	200 OK, 404 Not Found
-7	POST	/api/events	Creates a new race event. The authenticated organiser becomes the owner.	Organiser	eventName, description, eventDate, location, eventType	201 Created, 400 Bad Request, 401 Unauthorized, 403 Forbidden
-8	PUT	/api/events/{eventId}	Updates an event owned by the authenticated organiser.	Organiser	eventName, description, eventDate, location, eventType	200 OK, 400 Bad Request, 401 Unauthorized, 403 Forbidden, 404 Not Found
-9	DELETE	/api/events/{eventId}	Deletes an event owned by the authenticated organiser.	Organiser	None	204 No Content, 401 Unauthorized, 403 Forbidden, 404 Not Found, 409 Conflict
-7.1 Event Ownership
+## 6.1 Event Validation Rules
 
-When an organiser creates an event, the authenticated user's UserID will be stored in the event's OrganiserID foreign key.
+When creating or updating an event, the API should validate:
 
-Conceptually:
+* `eventName` is provided.
+* `eventDate` is provided and contains a valid date and time.
+* `location` is provided.
+* `eventType` is one of:
 
-Authenticated User
+  * `Running`
+  * `Walking`
+  * `Cycling`
+* The user performing the operation has the `Organiser` role.
+* The organiser owns the event before an update or delete operation is permitted.
+
+## 6.2 Event Ownership
+
+When an organiser creates an event, the API obtains the authenticated user's `UserID` from the JWT and stores that value in `Events.OrganiserID`.
+
+The client will not provide an arbitrary organiser identifier.
+
+The ownership relationship is:
+
+```text
+Authenticated Organiser
+          |
+          v
+       UserID
+          |
+          v
+Events.OrganiserID
+          |
+          v
+      Event Owner
+```
+
+Before an organiser updates or deletes an event, the API must verify that:
+
+```text
+AuthenticatedUser.UserID = Events.OrganiserID
+```
+
+If the values do not correspond, the API should return:
+
+`403 Forbidden` — The organiser does not own the requested event.
+
+## 6.3 Event Deletion
+
+Before an event is deleted, the API should consider dependent resources such as:
+
+* Categories
+* Routes
+* Enrolments
+* Results
+
+If dependent records prevent the event from being safely deleted, the API should return:
+
+`409 Conflict` — The event cannot be deleted because dependent data exists.
+
+The exact database deletion behaviour will be confirmed during Part 2 implementation.
+
+---
+
+# 7. Category Endpoints
+
+Categories represent the different race options offered within an event, such as 5 km, 10 km, half marathon or cycling distances.
+
+|  # | Method | Route                              | Description                                                                                                | Role Required | Request Body                                                | Expected Response                                                                                      |
+| -: | ------ | ---------------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| 10 | GET    | `/api/events/{eventId}/categories` | Retrieves all categories belonging to an event.                                                            | Public        | None                                                        | `200 OK`, `404 Not Found`                                                                              |
+| 11 | POST   | `/api/events/{eventId}/categories` | Creates a new category for an event owned by the authenticated organiser.                                  | Organiser     | `categoryName`, `distanceKm`, `maxParticipants`, `entryFee` | `201 Created`, `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`, `409 Conflict` |
+| 12 | PUT    | `/api/categories/{categoryId}`     | Updates a category belonging to the authenticated organiser's event.                                       | Organiser     | `categoryName`, `distanceKm`, `maxParticipants`, `entryFee` | `200 OK`, `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`, `409 Conflict`      |
+| 13 | DELETE | `/api/categories/{categoryId}`     | Deletes a category belonging to the authenticated organiser's event when dependency rules permit deletion. | Organiser     | None                                                        | `204 No Content`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`, `409 Conflict`                 |
+
+## 7.1 Category Validation Rules
+
+The API should ensure:
+
+* `categoryName` is provided.
+* `distanceKm` is greater than zero.
+* `maxParticipants` is greater than zero.
+* `entryFee` is zero or greater.
+* The referenced event exists.
+* The authenticated organiser owns the event.
+* The same category name is not duplicated within the same event.
+
+The database also supports these rules through validation and uniqueness constraints.
+
+## 7.2 Category Ownership
+
+Categories do not contain an `OrganiserID` directly.
+
+Instead, ownership is determined through the relationship:
+
+```text
+Categories.EventID
+        |
+        v
+Events.EventID
+        |
+        v
+Events.OrganiserID
+        |
+        v
+Authenticated UserID
+```
+
+The API should therefore determine the category's parent event before authorising an organiser's update or delete operation.
+
+## 7.3 Category Capacity
+
+`MaxParticipants` determines how many participants may enrol in the category.
+
+When a participant attempts to enrol, the API will compare the number of active/confirmed enrolments with:
+
+```text
+Categories.MaxParticipants
+```
+
+A full category should return:
+
+`409 Conflict` — The category has reached its maximum participant capacity.
+
+---
+
+# 8. Route Endpoints
+
+Routes represent the physical paths used during RaceDay events.
+
+|  # | Method | Route                          | Description                                                        | Role Required | Request Body                             | Expected Response                                                                      |
+| -: | ------ | ------------------------------ | ------------------------------------------------------------------ | ------------- | ---------------------------------------- | -------------------------------------------------------------------------------------- |
+| 14 | GET    | `/api/events/{eventId}/routes` | Retrieves routes associated with an event.                         | Public        | None                                     | `200 OK`, `404 Not Found`                                                              |
+| 15 | POST   | `/api/events/{eventId}/routes` | Creates a route for an event owned by the authenticated organiser. | Organiser     | `routeName`, `distanceKm`, `description` | `201 Created`, `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found` |
+| 16 | PUT    | `/api/routes/{routeId}`        | Updates a route belonging to the authenticated organiser's event.  | Organiser     | `routeName`, `distanceKm`, `description` | `200 OK`, `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`      |
+| 17 | DELETE | `/api/routes/{routeId}`        | Deletes a route belonging to the authenticated organiser's event.  | Organiser     | None                                     | `204 No Content`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`                 |
+
+## 8.1 Route Validation Rules
+
+The API should ensure:
+
+* `routeName` is provided.
+* `distanceKm` is greater than zero.
+* The associated event exists.
+* The authenticated organiser owns the associated event.
+
+## 8.2 Route Ownership
+
+Route ownership is determined through the event:
+
+```text
+Routes.EventID
        |
        v
-     UserID
+Events.EventID
        |
        v
 Events.OrganiserID
        |
        v
-Ownership confirmed
-       |
-       v
-Action permitted
+Authenticated UserID
+```
 
-An organiser cannot modify or delete another organiser's event.
+This ensures that an organiser can manage routes only for events they own.
 
-8. Category Endpoints
-#	Method	Route	Description	Role Required	Request Body	Expected Response
-10	GET	/api/events/{eventId}/categories	Retrieves all categories belonging to an event.	Public	None	200 OK, 404 Not Found
-11	POST	/api/events/{eventId}/categories	Creates a category for an event owned by the organiser.	Organiser	categoryName, distanceKm, maxParticipants, entryFee	201 Created, 400 Bad Request, 401 Unauthorized, 403 Forbidden, 404 Not Found, 409 Conflict
-12	PUT	/api/categories/{categoryId}	Updates an existing category belonging to the organiser's event.	Organiser	categoryName, distanceKm, maxParticipants, entryFee	200 OK, 400 Bad Request, 401 Unauthorized, 403 Forbidden, 404 Not Found
-13	DELETE	/api/categories/{categoryId}	Deletes a category where dependent enrolments do not prevent deletion.	Organiser	None	204 No Content, 401 Unauthorized, 403 Forbidden, 404 Not Found, 409 Conflict
-8.1 Category Validation
+## 8.3 Public Route Access
 
-The API should ensure:
+Route information is publicly accessible because participants should be able to review the route associated with an event before entering.
 
-distanceKm is greater than zero.
-maxParticipants is greater than zero.
-entryFee is zero or greater.
-The event exists.
-The authenticated organiser owns the event.
-A duplicate category is not created for the same event.
-Existing enrolments are considered before deleting a category.
-
-The database also enforces important category rules through CHECK and UNIQUE constraints.
+The MVC application in Part 3 may use this information to present route details alongside event information.
 
 # 9. Enrolment Endpoints
 
