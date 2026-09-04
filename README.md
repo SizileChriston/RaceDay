@@ -275,3 +275,40 @@ Green Check Mark
 ```
 
 A screenshot of the successful workflow run will be included below as submission evidence.
+## Part 1 Video Presentation
+
+A Part 1 video presentation will be submitted as an **unlisted YouTube video**.
+
+The presentation will demonstrate and explain:
+
+1. The RaceDay system overview.
+2. The Entity Relationship Diagram and design decisions.
+3. The API endpoint plan and endpoint choices.
+4. The database entities and relationships.
+5. The SQL database script.
+6. The successful execution of the SQL script.
+7. The GitHub repository structure.
+8. The successful GitHub Actions workflow.
+
+The video will contain my own voice explaining the project and demonstrating the work.
+
+### YouTube Video
+
+**Part 1 Presentation:**
+`[INSERT UNLISTED YOUTUBE LINK HERE]`
+## SQL Database Setup
+
+The RaceDay database is created using the SQL script:
+
+`docs/RaceDay_Database.sql`
+
+The script targets Microsoft SQL Server and has been tested against the local SQL Server LocalDB instance:
+
+`(localdb)\MSSQLLocalDB`
+
+### Execute the Database Script
+
+From the RaceDay project root, the script can be executed using `sqlcmd`:
+
+```powershell
+sqlcmd -S "(localdb)\MSSQLLocalDB" -i "docs/RaceDay_Database.sql"
