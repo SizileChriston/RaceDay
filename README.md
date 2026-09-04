@@ -310,5 +310,7 @@ The script targets Microsoft SQL Server and has been tested against the local SQ
 
 From the RaceDay project root, the script can be executed using `sqlcmd`:
 
-```powershell
-sqlcmd -S "(localdb)\MSSQLLocalDB" -i "docs/RaceDay_Database.sql"
+
+
+**workflow**
+<img width="1433" height="717" alt="image" src="https://github.com/user-attachments/assets/67f9a9ad-acdc-4740-b577-63eba18abab3" />
