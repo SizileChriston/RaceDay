@@ -5,6 +5,7 @@ namespace RaceDay.Api.Models;
 
 public class Enrolment
 {
+    [Key]
     public int EnrolmentId { get; set; }
 
     public int UserId { get; set; }

@@ -4,6 +4,7 @@ namespace RaceDay.Api.Models;
 
 public class Category
 {
+    [Key]
     public int CategoryId { get; set; }
 
     public int EventId { get; set; }

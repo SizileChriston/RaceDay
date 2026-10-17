@@ -4,6 +4,7 @@ namespace RaceDay.Api.Models;
 
 public class RaceRoute
 {
+    [Key]
     public int RouteId { get; set; }
 
     public int EventId { get; set; }

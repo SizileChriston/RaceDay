@@ -5,6 +5,7 @@ namespace RaceDay.Api.Models;
 
 public class RaceEvent
 {
+    [Key]
     public int EventId { get; set; }
 
     public int OrganiserId { get; set; }

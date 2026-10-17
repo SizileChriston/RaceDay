@@ -1,3 +1,6 @@
+using Microsoft.EntityFrameworkCore;
+using RaceDay.Api.Data;
+
 
 namespace RaceDay.Api
 {
@@ -5,8 +8,14 @@ namespace RaceDay.Api
     {
         public static void Main(string[] args)
         {
+            
             var builder = WebApplication.CreateBuilder(args);
 
+            builder.Services.AddControllers();
+            //make the RaceDay database available to the API
+            builder.Services.AddDbContext<RaceDayDbContext>(options =>
+                options.UseSqlServer(
+                    builder.Configuration.GetConnectionString("RaceDay")));
             // Add services to the container.
 
             builder.Services.AddControllers();
@@ -27,9 +36,11 @@ namespace RaceDay.Api
 
             app.UseAuthorization();
 
-
+            //activate the controller files that we will create for our endpoints
             app.MapControllers();
 
+
+            app.MapControllers();
             app.Run();
         }
     }
