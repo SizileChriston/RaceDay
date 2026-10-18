@@ -13,14 +13,18 @@ public class Category
     [MaxLength(100)]
     public string CategoryName { get; set; } = string.Empty;
 
-    [Range(typeof(decimal), "0.01", "9999.99")]
+
+    [Range(0.01, 9999.99)]
     public decimal DistanceKm { get; set; }
+
 
     [Range(1, 100000)]
     public int MaxParticipants { get; set; }
 
-    [Range(typeof(decimal), "0.00", "999999.99")]
+
+    [Range(0.00, 999999.99)]
     public decimal EntryFee { get; set; }
+
 
     public RaceEvent? Event { get; set; }
 
