@@ -363,3 +363,63 @@ Verified records:
 | Part 1 presentation            | 🔄 Video link to be added before final submission |
 
 Part 1 is therefore ready for final presentation and submission, subject to adding the final unlisted YouTube video link.
+
+## Part 3 — MVC Web Application
+
+Part 3 adds the `RaceDay.Mvc` ASP.NET Core MVC application. It communicates with `RaceDay.Api` over HTTP and does not connect directly to SQL Server. The API remains responsible for database access and role enforcement.
+
+### Part 3 features
+
+- Public upcoming-event browsing, searching, event details, and category distances.
+- Participant registration through the API, login, session-based navigation, event entry, own enrolments, own results, and profile editing.
+- Organiser dashboard, event creation/editing/deletion, category creation, enrolment viewing, and result recording.
+- Image uploads from MVC to the API; the API stores images in Azure Blob Storage and saves the returned image URLs in nullable `Events.BannerImageUrl` and `Users.ProfilePictureUrl` columns.
+- A responsive Bootstrap interface with distinct participant and organiser navigation and colour-coded enrolment statuses.
+- A Dockerfile for the MVC project and a GitHub Actions workflow that builds the solution, runs the existing test project, and builds the MVC container image.
+
+### Run locally
+
+1. In Visual Studio, set the API project to start first and use its **http** profile (`http://localhost:5134`). Keep the API running.
+2. Set `RaceDay.Mvc` as the startup project and run it with the **https** profile. The site opens at `https://localhost:7171`.
+3. Sign in with an existing Participant or Organiser account from the local database. Public registration creates Participant accounts only; Organiser accounts are provisioned by an administrator, matching the API's security rules.
+
+The MVC API address can be changed with the `Api__BaseUrl` environment variable or the `Api:BaseUrl` setting in `RaceDay.Mvc/appsettings.json`.
+
+### Database update for image URLs
+
+The Part 3 migration adds two nullable columns and leaves existing data intact. For the current LocalDB database, run the idempotent script `docs/Part3_ImageUrl_Migration.sql` in SSMS with `RaceDayPart2` selected. Alternatively, with the EF command-line tool installed, apply the migration using `dotnet ef database update --project RaceDay.Api --startup-project RaceDay.Api`. Check that the API is configured to use the same database before applying it. The two methods may be used in either order; the SQL script records the migration when EF Core migration history exists.
+
+### Configure Azure Blob Storage
+
+The API reads the Azure Storage connection string from a local user secret, not from a committed settings file. From the `RaceDay` folder, run:
+
+```powershell
+dotnet user-secrets set "AzureBlobStorage:ConnectionString" "<your storage account connection string>" --project RaceDay.Api
+dotnet user-secrets set "AzureBlobStorage:ContainerName" "raceday-images" --project RaceDay.Api
+```
+
+The API creates the image container on the first upload. The storage account must permit blob-level public reads so the returned image URLs can be displayed in the web application. Do not commit or paste the connection string into a public repository or chat.
+
+### Run the MVC app in Docker
+
+Start the API so it listens on the host's port 5134, with the API database and Azure settings configured. Then, from the `RaceDay` folder:
+
+```powershell
+docker build -t racedday-mvc -f RaceDay.Mvc/Dockerfile RaceDay.Mvc
+docker run --rm -p 8080:8080 -e Api__BaseUrl=http://host.docker.internal:5134/ racedday-mvc
+```
+
+Open `http://localhost:8080`. The MVC container calls the API on the host; it does not contain a second database connection.
+
+### Part 3 submission checklist
+
+- [ ] Run the image URL migration on the database used by the API.
+- [ ] Add Azure Storage credentials as API user secrets and verify both image upload flows.
+- [ ] Run the Part 3 GitHub Actions workflow and add a screenshot of a successful green run here.
+- [ ] Review and understand the code, and be ready to explain the decisions in your own words.
+- [ ] Record the required unlisted video in your own voice; include the MVC pages, API communication, Azure uploads, and Docker run. Add its YouTube link here.
+- [ ] Make at least 20 meaningful Part 3 commits in your own GitHub repository and submit that repository link on ARC.
+
+### AI use disclosure
+
+AI assistance was used to help scaffold and review parts of the Part 3 implementation. The student must review, test, adapt, and be able to explain all submitted code in accordance with the assignment instructions.
