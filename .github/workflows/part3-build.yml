@@ -1,0 +1,26 @@
+name: RaceDay Part 3 Build and Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-test-container:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Install .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Restore solution
+        run: dotnet restore RaceDay.Api/RaceDay.Api.slnx
+      - name: Build API, MVC, and test projects
+        run: dotnet build RaceDay.Api/RaceDay.Api.slnx --configuration Release --no-restore
+      - name: Run API test project
+        run: dotnet test RaceDay.Tests/RaceDay.Tests.csproj --configuration Release --no-build
+      - name: Build MVC Docker image
+        run: docker build -t racedday-mvc:ci -f RaceDay.Mvc/Dockerfile RaceDay.Mvc
