@@ -5,6 +5,7 @@ using RaceDay.Api.Data;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using RaceDay.Api.Dtos;
+using RaceDay.Api.Services;
 
 namespace RaceDay.Api.Controllers;
 
@@ -35,6 +36,7 @@ public class EventsController : ControllerBase
                 raceEvent.EventDate,
                 raceEvent.Location,
                 raceEvent.EventType,
+                raceEvent.BannerImageUrl,
                 raceEvent.CreatedAt
             })
             .ToListAsync();
@@ -59,6 +61,7 @@ public class EventsController : ControllerBase
                 eventItem.EventDate,
                 eventItem.Location,
                 eventItem.EventType,
+                eventItem.BannerImageUrl,
                 eventItem.CreatedAt
             })
             .FirstOrDefaultAsync();
@@ -73,6 +76,51 @@ public class EventsController : ControllerBase
 
         return Ok(raceEvent);
     }
+
+    // GET: api/events/mine
+    // Organisers can see the events they own for their dashboard.
+    [HttpGet("mine")]
+    [Authorize(Roles = "Organiser")]
+    public async Task<IActionResult> GetMyEvents()
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(userIdValue, out int organiserId)) return Unauthorized();
+
+        var events = await _context.Events.AsNoTracking()
+            .Where(e => e.OrganiserId == organiserId)
+            .OrderBy(e => e.EventDate)
+            .Select(e => new { e.EventId, e.EventName, e.Description, e.EventDate, e.Location, e.EventType, e.BannerImageUrl, e.CreatedAt })
+            .ToListAsync();
+        return Ok(events);
+    }
+
+    // POST: api/events/{eventId}/banner
+    // Upload an event image through the API and save its URL.
+    [HttpPost("{eventId:int}/banner")]
+    [Authorize(Roles = "Organiser")]
+    [RequestSizeLimit(5_000_000)]
+    public async Task<IActionResult> UploadBanner(int eventId, IFormFile file, [FromServices] IBlobStorageService blobStorage, CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(userIdValue, out int organiserId)) return Unauthorized();
+        var raceEvent = await _context.Events.FirstOrDefaultAsync(e => e.EventId == eventId, cancellationToken);
+        if (raceEvent is null) return NotFound(new { message = "Event not found." });
+        if (raceEvent.OrganiserId != organiserId) return Forbid();
+        if (file is null || file.Length == 0) return BadRequest(new { message = "Choose an image to upload." });
+        if (!IsAllowedImage(file)) return BadRequest(new { message = "Only PNG, JPEG, and WebP images are accepted." });
+
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            raceEvent.BannerImageUrl = await blobStorage.UploadImageAsync(stream, file.FileName, file.ContentType, cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
+            return Ok(new { raceEvent.EventId, raceEvent.BannerImageUrl });
+        }
+        catch (InvalidOperationException ex) { return StatusCode(503, new { message = ex.Message }); }
+        catch (Azure.RequestFailedException) { return StatusCode(503, new { message = "Azure Blob Storage could not complete the upload. Check the storage account settings and container access." }); }
+    }
+
+    private static bool IsAllowedImage(IFormFile file) => file.ContentType is "image/png" or "image/jpeg" or "image/webp" && file.Length <= 5_000_000;
 
 
     // POST: /api/events
@@ -267,6 +315,12 @@ public class EventsController : ControllerBase
         if (existingEvent.OrganiserId != organiserId)
         {
             return Forbid();
+        }
+
+        bool hasEnrolments = await _context.Enrolments.AnyAsync(e => e.Category != null && e.Category.EventId == eventId);
+        if (hasEnrolments)
+        {
+            return Conflict(new { message = "This event has participant enrolments and cannot be deleted while those records exist." });
         }
 
         // Mark the event for deletion.
