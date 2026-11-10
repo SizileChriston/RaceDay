@@ -27,6 +27,9 @@ public class RaceEvent
     [MaxLength(50)]
     public string EventType { get; set; } = string.Empty;
 
+    [MaxLength(2048)]
+    public string? BannerImageUrl { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public User? Organiser { get; set; }

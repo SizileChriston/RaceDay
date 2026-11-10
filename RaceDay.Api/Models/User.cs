@@ -29,6 +29,9 @@ public class User
     [MaxLength(20)]
     public string Role { get; set; } = string.Empty;
 
+    [MaxLength(2048)]
+    public string? ProfilePictureUrl { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public List<RaceEvent> OrganisedEvents { get; set; } = new();
