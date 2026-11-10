@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RaceDay.Api.Data;
+using RaceDay.Api.Services;
 
 namespace RaceDay.Api.Controllers;
 
@@ -48,6 +49,7 @@ public class ProfileController : ControllerBase
                 user.LastName,
                 user.Email,
                 user.Role,
+                user.ProfilePictureUrl,
                 user.CreatedAt
             })
             .SingleOrDefaultAsync();
@@ -143,9 +145,38 @@ public class ProfileController : ControllerBase
                 user.LastName,
                 user.Email,
                 user.Role,
+                user.ProfilePictureUrl,
                 user.CreatedAt
             }
         });
+    }
+
+    // POST: api/profile/me/picture
+    // The MVC app sends a picture to the API; the API stores it in Azure.
+    [HttpPost("me/picture")]
+    [RequestSizeLimit(5_000_000)]
+    public async Task<IActionResult> UploadProfilePicture(
+        IFormFile file,
+        [FromServices] IBlobStorageService blobStorage,
+        CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(userIdValue, out int userId)) return Unauthorized();
+        if (file is null || file.Length == 0) return BadRequest(new { message = "Choose an image to upload." });
+        if (file.Length > 5_000_000 || file.ContentType is not ("image/png" or "image/jpeg" or "image/webp"))
+            return BadRequest(new { message = "Only PNG, JPEG, and WebP images up to 5 MB are accepted." });
+
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId, cancellationToken);
+        if (user is null) return NotFound(new { message = "User profile not found." });
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            user.ProfilePictureUrl = await blobStorage.UploadImageAsync(stream, file.FileName, file.ContentType, cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
+            return Ok(new { user.UserId, user.ProfilePictureUrl });
+        }
+        catch (InvalidOperationException ex) { return StatusCode(503, new { message = ex.Message }); }
+        catch (Azure.RequestFailedException) { return StatusCode(503, new { message = "Azure Blob Storage could not complete the upload. Check the storage account settings and container access." }); }
     }
 
     // GET: api/profile/me/enrolments
