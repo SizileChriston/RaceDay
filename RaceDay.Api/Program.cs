@@ -107,3 +107,4 @@ namespace RaceDay.Api
         }
     }
 }
+            builder.Services.AddSingleton<IBlobStorageService, BlobStorageService>();
