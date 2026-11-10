@@ -375,6 +375,10 @@ public class ResultsController : ControllerBase
                 r.Position,
                 r.ResultStatus,
                 r.RecordedAt,
+                TotalFinishers = r.Enrolment!.Category!.Enrolments.Count(enrolment =>
+                    enrolment.Result != null &&
+                    enrolment.Result.ResultStatus == "Official" &&
+                    enrolment.Result.FinishTime != null),
 
                 Category = r.Enrolment!.Category == null
                     ? null
