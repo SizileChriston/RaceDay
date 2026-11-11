@@ -25,6 +25,7 @@ namespace RaceDay.Api
 
             // Register the JWT token service.
             builder.Services.AddScoped<TokenService>();
+            builder.Services.AddSingleton<IBlobStorageService, BlobStorageService>();
 
             // Configure JWT authentication.
             builder.Services
@@ -107,4 +108,3 @@ namespace RaceDay.Api
         }
     }
 }
-            builder.Services.AddSingleton<IBlobStorageService, BlobStorageService>();
