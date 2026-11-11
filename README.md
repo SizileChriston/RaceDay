@@ -417,13 +417,17 @@ The `RaceDay Part 3 Build and Test` workflow completed successfully on branch `p
 
 ![Successful RaceDay Part 3 GitHub Actions run](RaceDay_Submission_Evidence/Part3-CI-Success.png)
 
+### Part 3 video presentation
+
+[Watch the Part 3 presentation](https://youtu.be/lU8KreeK0_k).
+
 ### Part 3 submission checklist
 
 - [x] Apply the image URL migration to the database used by the API (verified on the local `RaceDayPart2` database).
 - [ ] Configure Azure Blob Storage credentials and verify both image upload flows. Azure was not configured for this submission, so uploads have not been verified.
 - [x] Run the Part 3 GitHub Actions workflow successfully and include its screenshot above.
 - [ ] Review and understand the code, and be ready to explain the decisions in your own words.
-- [ ] Record the required unlisted video in your own voice, demonstrate the MVC pages, API communication, Azure upload design, and Docker, then add the YouTube link here.
+- [x] Add the Part 3 video link: [Watch the presentation](https://youtu.be/lU8KreeK0_k).
 - [x] Make at least 20 meaningful Part 3 commits (the minimum is met on the Part 3 branch).
 - [ ] Submit the Part 3 branch link on ARC: https://github.com/SizileChriston/RaceDay/tree/part3/mvc-web-application
 ### AI use disclosure
