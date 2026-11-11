@@ -402,7 +402,7 @@ The API creates the image container on the first upload. The storage account mus
 
 ### Run the MVC app in Docker
 
-Start the API so it listens on the host's port 5134, with the API database and Azure settings configured. Then, from the `RaceDay` folder:
+Start the API on the host's port 5134 with the database configured. Azure settings are needed for image uploads only. Then, from the `RaceDay` folder:
 
 ```powershell
 docker build -t racedday-mvc -f RaceDay.Mvc/Dockerfile RaceDay.Mvc
@@ -411,15 +411,21 @@ docker run --rm -p 8080:8080 -e Api__BaseUrl=http://host.docker.internal:5134/ r
 
 Open `http://localhost:8080`. The MVC container calls the API on the host; it does not contain a second database connection.
 
+### Part 3 GitHub Actions evidence
+
+The `RaceDay Part 3 Build and Test` workflow completed successfully on branch `part3/mvc-web-application` at commit `e86eab7` (`Fix API service registration position for CI`). The workflow restored and built the solution, ran the API test project, and built the MVC Docker image.
+
+![Successful RaceDay Part 3 GitHub Actions run](RaceDay_Submission_Evidence/Part3-CI-Success.png)
+
 ### Part 3 submission checklist
 
-- [ ] Run the image URL migration on the database used by the API.
-- [ ] Add Azure Storage credentials as API user secrets and verify both image upload flows.
-- [ ] Run the Part 3 GitHub Actions workflow and add a screenshot of a successful green run here.
+- [x] Apply the image URL migration to the database used by the API (verified on the local `RaceDayPart2` database).
+- [ ] Configure Azure Blob Storage credentials and verify both image upload flows. Azure was not configured for this submission, so uploads have not been verified.
+- [x] Run the Part 3 GitHub Actions workflow successfully and include its screenshot above.
 - [ ] Review and understand the code, and be ready to explain the decisions in your own words.
-- [ ] Record the required unlisted video in your own voice; include the MVC pages, API communication, Azure uploads, and Docker run. Add its YouTube link here.
-- [ ] Make at least 20 meaningful Part 3 commits in your own GitHub repository and submit that repository link on ARC.
-
+- [ ] Record the required unlisted video in your own voice, demonstrate the MVC pages, API communication, Azure upload design, and Docker, then add the YouTube link here.
+- [x] Make at least 20 meaningful Part 3 commits (26 commits are on the Part 3 branch ahead of `main`).
+- [ ] Submit the Part 3 branch link on ARC: https://github.com/SizileChriston/RaceDay/tree/part3/mvc-web-application
 ### AI use disclosure
 
 AI assistance was used to help scaffold and review parts of the Part 3 implementation. The student must review, test, adapt, and be able to explain all submitted code in accordance with the assignment instructions.
