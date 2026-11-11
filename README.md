@@ -424,7 +424,7 @@ The `RaceDay Part 3 Build and Test` workflow completed successfully on branch `p
 - [x] Run the Part 3 GitHub Actions workflow successfully and include its screenshot above.
 - [ ] Review and understand the code, and be ready to explain the decisions in your own words.
 - [ ] Record the required unlisted video in your own voice, demonstrate the MVC pages, API communication, Azure upload design, and Docker, then add the YouTube link here.
-- [x] Make at least 20 meaningful Part 3 commits (26 commits are on the Part 3 branch ahead of `main`).
+- [x] Make at least 20 meaningful Part 3 commits (the minimum is met on the Part 3 branch).
 - [ ] Submit the Part 3 branch link on ARC: https://github.com/SizileChriston/RaceDay/tree/part3/mvc-web-application
 ### AI use disclosure
 
