@@ -2,9 +2,7 @@ name: RaceDay Part 3 Build and Test
 
 on:
   push:
-    branches: [ main ]
   pull_request:
-    branches: [ main ]
 
 jobs:
   build-test-container:
